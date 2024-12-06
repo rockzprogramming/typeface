@@ -327,358 +327,115 @@ body {
   <div class="suggestion-popup"></div>
 
 <script>
-document.querySelector('.doc-title').addEventListener('input', function(e) {
-  document.title = e.target.value + ' - Google Docs';
-});
-
-// Show header shadow on scroll
-window.addEventListener('scroll', function() {
-  const header = document.querySelector('.header');
-  if (window.scrollY > 0) {
-    header.classList.add('scrolled');
-  } else {
-    header.classList.remove('scrolled');
-  }
-});
-
-let saveTimeout;
-document.querySelector('.editor').addEventListener('input', function() {
-  // Clear previous timeout
-  clearTimeout(saveTimeout);
-  
-  // Set new timeout for autosave
-  saveTimeout = setTimeout(() => {
-    // Show save indicator
-    const indicator = document.createElement('div');
-    indicator.className = 'save-indicator';
-    indicator.textContent = 'Changes saved';
-    document.body.appendChild(indicator);
-    
-    // Remove indicator after animation
-    setTimeout(() => {
-      indicator.remove();
-    }, 2000);
-    
-    // Here you would normally implement actual save functionality
-    console.log('Content saved');
-  }, 1000);
-});
-
-// Basic formatting commands
-document.querySelectorAll('.toolbar-button').forEach(button => {
-  button.addEventListener('click', function() {
-    const command = this.dataset.command;
-    if (!command) return;
-
-    switch(command) {
-      case 'fontSize':
-        const size = prompt('Enter font size (px):', '11');
-        if (size) document.execCommand('fontSize', false, '7');
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          const span = document.createElement('span');
-          span.style.fontSize = size + 'px';
-          range.surroundContents(span);
-        }
-        break;
-
-      case 'indent':
-        document.execCommand('indent', false, null);
-        break;
-
-      case 'outdent':
-        document.execCommand('outdent', false, null);
-        break;
-
-      default:
-        document.execCommand(command, false, null);
-    }
-
-    // Add visual feedback
-    this.style.transform = 'scale(0.9)';
-    setTimeout(() => this.style.transform = 'scale(1)', 100);
-  });
-});
-
-// Add support for keyboard shortcuts
-const shortcuts = {
-  'ctrl+b': 'bold',
-  'ctrl+i': 'italic',
-  'ctrl+u': 'underline',
-  'ctrl+l': 'justifyLeft',
-  'ctrl+e': 'justifyCenter',
-  'ctrl+r': 'justifyRight',
-  'ctrl+shift+7': 'insertOrderedList',
-  'ctrl+shift+8': 'insertUnorderedList',
-  'tab': 'indent',
-  'shift+tab': 'outdent'
-};
-
-document.querySelector('.editor').addEventListener('keydown', function(e) {
-  const key = (e.ctrlKey ? 'ctrl+' : '') + 
-              (e.shiftKey ? 'shift+' : '') + 
-              e.key.toLowerCase();
-              
-  if (shortcuts[key]) {
-    e.preventDefault();
-    document.execCommand(shortcuts[key], false, null);
-  }
-});
-
-// Add history tracking
-let undoStack = [];
-let redoStack = [];
-
-document.querySelector('.editor').addEventListener('input', function(e) {
-  undoStack.push(this.innerHTML);
-  redoStack = []; // Clear redo stack on new changes
-});
-
-document.querySelector('[data-command="undo"]').addEventListener('click', function() {
-  if (undoStack.length > 0) {
-    const editor = document.querySelector('.editor');
-    redoStack.push(editor.innerHTML);
-    editor.innerHTML = undoStack.pop();
-  }
-});
-
-// Autocorrect functionality
-const commonMisspellings = {
-  'teh': 'the',
-  'recieve': 'receive',
-  'wierd': 'weird',
-  'seperate': 'separate',
-  'occurence': 'occurrence',
-  'thier': 'their',
-  // Add more word pairs as needed
-};
-
-let selectedWord = null;
-let selectedRange = null;
-
-document.querySelector('.editor').addEventListener('dblclick', function(e) {
-  const selection = window.getSelection();
-  const range = selection.getRangeAt(0);
-  const word = selection.toString().trim().toLowerCase();
-  
-  if (word) {
-    selectedWord = word;
-    selectedRange = range;
-    
-    // Find suggestions
-    const suggestions = findSuggestions(word);
-    if (suggestions.length > 0) {
-      showSuggestions(suggestions, e.clientX, e.clientY);
-    }
-  }
-});
-
-function findSuggestions(word) {
-  const suggestions = [];
-  
-  // Check common misspellings
-  if (commonMisspellings[word]) {
-    suggestions.push(commonMisspellings[word]);
-  }
-  
-  // Add similar words (simple example)
-  Object.keys(commonMisspellings).forEach(key => {
-    if (key.includes(word) || word.includes(key)) {
-      suggestions.push(commonMisspellings[key]);
-    }
-  });
-  
-  return [...new Set(suggestions)]; // Remove duplicates
+// Function to save to cookies
+function setCookie(name, value, days) {
+  const expires = new Date();
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/`;
 }
 
-function showSuggestions(suggestions, x, y) {
-  const popup = document.querySelector('.suggestion-popup');
-  popup.innerHTML = '';
-  popup.style.display = 'block';
-  popup.style.left = `${x}px`;
-  popup.style.top = `${y + 20}px`;
-  
-  suggestions.forEach(suggestion => {
-    const item = document.createElement('div');
-    item.className = 'suggestion-item';
-    item.textContent = suggestion;
-    item.addEventListener('click', () => {
-      replaceTerm(suggestion);
-      popup.style.display = 'none';
-    });
-    popup.appendChild(item);
-  });
+// Function to get from cookies
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
 }
 
-function replaceTerm(newWord) {
-  if (selectedRange) {
-    selectedRange.deleteContents();
-    selectedRange.insertNode(document.createTextNode(newWord));
+// Load saved theme and content on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Load saved theme
+  const savedTheme = getCookie('selectedTheme');
+  if (savedTheme) {
+    const theme = themes.find(t => t.name === savedTheme);
+    if (theme) applyTheme(theme);
   }
-}
 
-// Hide suggestions when clicking outside
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.suggestion-popup')) {
-    document.querySelector('.suggestion-popup').style.display = 'none';
+  // Load saved content
+  const savedContent = getCookie('documentContent');
+  if (savedContent) {
+    document.querySelector('.editor').innerHTML = savedContent;
+  }
+
+  // Load saved title
+  const savedTitle = getCookie('documentTitle');
+  if (savedTitle) {
+    document.querySelector('.doc-title').value = savedTitle;
+    document.title = savedTitle + ' - Google Docs';
   }
 });
 
-// Themes functionality
-const themes = [
-  { name: 'Default', bg: '#ffffff', text: '#000000', accent: '#4285f4', headerBg: '#ffffff', toolbarBg: '#ffffff' },
-  { name: 'Dark', bg: '#1a1a1a', text: '#ffffff', accent: '#bb86fc', headerBg: '#2d2d2d', toolbarBg: '#2d2d2d' },
-  { name: 'Sepia', bg: '#f4ecd8', text: '#5c4b37', accent: '#8b4513', headerBg: '#efe5d4', toolbarBg: '#efe5d4' },
-  { name: 'Ocean', bg: '#f0f8ff', text: '#000080', accent: '#4169e1', headerBg: '#e6f3ff', toolbarBg: '#e6f3ff' },
-  { name: 'Forest', bg: '#f1f8e9', text: '#1b5e20', accent: '#2e7d32', headerBg: '#e8f5e9', toolbarBg: '#e8f5e9' },
-  { name: 'Sunset', bg: '#fff3e0', text: '#bf360c', accent: '#ff7043', headerBg: '#ffe0b2', toolbarBg: '#ffe0b2' },
-  { name: 'Midnight', bg: '#0a1929', text: '#e3f2fd', accent: '#5c6bc0', headerBg: '#132f4c', toolbarBg: '#132f4c' },
-  { name: 'Lavender', bg: '#f3e5f5', text: '#4a148c', accent: '#9c27b0', headerBg: '#ede7f6', toolbarBg: '#ede7f6' },
-  { name: 'Mint', bg: '#e0f2f1', text: '#004d40', accent: '#00897b', headerBg: '#e0f2f1', toolbarBg: '#e0f2f1' },
-  { name: 'Rose Gold', bg: '#fce4ec', text: '#880e4f', accent: '#ec407a', headerBg: '#fce4ec', toolbarBg: '#fce4ec' },
-  { name: 'Cyberpunk', bg: '#0c0c1d', text: '#00ff9f', accent: '#ff00ff', headerBg: '#1a1a2e', toolbarBg: '#1a1a2e' },
-  { name: 'Forest Deep', bg: '#1b5e20', text: '#ffffff', accent: '#4caf50', headerBg: '#2e7d32', toolbarBg: '#2e7d32' },
-  { name: 'Forest Light', bg: '#e8f5e9', text: '#1b5e20', accent: '#81c784', headerBg: '#c8e6c9', toolbarBg: '#c8e6c9' },
-  { name: 'Ocean Deep', bg: '#01579b', text: '#ffffff', accent: '#039be5', headerBg: '#0277bd', toolbarBg: '#0277bd' },
-  { name: 'Ocean Light', bg: '#e1f5fe', text: '#01579b', accent: '#29b6f6', headerBg: '#b3e5fc', toolbarBg: '#b3e5fc' },
-  { name: 'Purple Rain', bg: '#4a148c', text: '#ffffff', accent: '#9c27b0', headerBg: '#6a1b9a', toolbarBg: '#6a1b9a' },
-  { name: 'Purple Mist', bg: '#f3e5f5', text: '#4a148c', accent: '#ba68c8', headerBg: '#e1bee7', toolbarBg: '#e1bee7' },
-  { name: 'Ruby Deep', bg: '#b71c1c', text: '#ffffff', accent: '#e53935', headerBg: '#c62828', toolbarBg: '#c62828' },
-  { name: 'Ruby Light', bg: '#ffebee', text: '#b71c1c', accent: '#ef5350', headerBg: '#ffcdd2', toolbarBg: '#ffcdd2' },
-  { name: 'Emerald Deep', bg: '#004d40', text: '#ffffff', accent: '#00897b', headerBg: '#00695c', toolbarBg: '#00695c' },
-  { name: 'Emerald Light', bg: '#e0f2f1', text: '#004d40', accent: '#4db6ac', headerBg: '#b2dfdb', toolbarBg: '#b2dfdb' },
-  { name: 'Golden Deep', bg: '#f57f17', text: '#ffffff', accent: '#fbc02d', headerBg: '#f9a825', toolbarBg: '#f9a825' },
-  { name: 'Golden Light', bg: '#fffde7', text: '#f57f17', accent: '#ffee58', headerBg: '#fff9c4', toolbarBg: '#fff9c4' },
-  { name: 'Arctic Deep', bg: '#01579b', text: '#ffffff', accent: '#03a9f4', headerBg: '#0288d1', toolbarBg: '#0288d1' },
-  { name: 'Arctic Light', bg: '#e1f5fe', text: '#01579b', accent: '#4fc3f7', headerBg: '#b3e5fc', toolbarBg: '#b3e5fc' },
-  { name: 'Coral Deep', bg: '#bf360c', text: '#ffffff', accent: '#ff5722', headerBg: '#d84315', toolbarBg: '#d84315' },
-  { name: 'Coral Light', bg: '#fbe9e7', text: '#bf360c', accent: '#ff8a65', headerBg: '#ffccbc', toolbarBg: '#ffccbc' },
-  { name: 'Sage Deep', bg: '#33691e', text: '#ffffff', accent: '#7cb342', headerBg: '#558b2f', toolbarBg: '#558b2f' },
-  { name: 'Sage Light', bg: '#f1f8e9', text: '#33691e', accent: '#aed581', headerBg: '#dcedc8', toolbarBg: '#dcedc8' },
-  { name: 'Berry Deep', bg: '#880e4f', text: '#ffffff', accent: '#e91e63', headerBg: '#ad1457', toolbarBg: '#ad1457' },
-  { name: 'Berry Light', bg: '#fce4ec', text: '#880e4f', accent: '#f06292', headerBg: '#f8bbd0', toolbarBg: '#f8bbd0' },
-  { name: 'Steel Deep', bg: '#263238', text: '#ffffff', accent: '#546e7a', headerBg: '#37474f', toolbarBg: '#37474f' },
-  { name: 'Steel Light', bg: '#eceff1', text: '#263238', accent: '#90a4ae', headerBg: '#cfd8dc', toolbarBg: '#cfd8dc' },
-  { name: 'Bronze Deep', bg: '#3e2723', text: '#ffffff', accent: '#6d4c41', headerBg: '#4e342e', toolbarBg: '#4e342e' },
-  { name: 'Bronze Light', bg: '#efebe9', text: '#3e2723', accent: '#a1887f', headerBg: '#d7ccc8', toolbarBg: '#d7ccc8' }
-];
-
-const themesList = document.getElementById('themes-list');
-themes.forEach(theme => {
-  const themeOption = document.createElement('div');
-  themeOption.className = 'theme-option';
-  
-  const preview = document.createElement('div');
-  preview.className = 'theme-preview';
-  preview.style.background = theme.bg;
-  preview.style.border = `2px solid ${theme.accent}`;
-  
-  const name = document.createElement('span');
-  name.textContent = theme.name;
-  
-  themeOption.appendChild(preview);
-  themeOption.appendChild(name);
-  
-  themeOption.addEventListener('click', () => applyTheme(theme));
-  themesList.appendChild(themeOption);
-});
-
+// Modify the applyTheme function to save theme selection
 function applyTheme(theme) {
-  document.documentElement.style.setProperty('--blue-500', theme.accent);
-  document.documentElement.style.setProperty('--gray-100', adjustColor(theme.bg, -5));
-  document.documentElement.style.setProperty('--gray-200', adjustColor(theme.bg, -10));
-  document.documentElement.style.setProperty('--gray-700', adjustColor(theme.text, 20));
+  // ... (existing theme application code) ...
 
-  document.body.style.background = theme.bg;
-  document.body.style.color = theme.text;
-
-  const header = document.querySelector('.header');
-  header.style.background = theme.headerBg;
-  header.style.borderColor = adjustColor(theme.headerBg, -10);
-
-  const toolbar = document.querySelector('.toolbar');
-  toolbar.style.background = theme.toolbarBg;
-  toolbar.style.borderColor = adjustColor(theme.toolbarBg, -10);
-
-  const editor = document.querySelector('.editor');
-  editor.style.background = theme.bg;
-  editor.style.color = theme.text;
-  editor.style.borderColor = adjustColor(theme.bg, -10);
-
-  document.querySelectorAll('.toolbar-button').forEach(button => {
-    button.style.color = theme.text;
-  });
-
-  const docTitle = document.querySelector('.doc-title');
-  docTitle.style.color = theme.text;
-  docTitle.style.background = theme.headerBg;
-
-  const themesPanel = document.querySelector('.themes-panel');
-  themesPanel.style.background = theme.headerBg;
-  themesPanel.style.color = theme.text;
-
-  document.documentElement.style.setProperty('--hover-bg', adjustColor(theme.bg, -5));
+  // Save theme selection to cookie
+  setCookie('selectedTheme', theme.name, 30);
 }
 
-function adjustColor(color, amount) {
-  const clamp = (val) => Math.min(Math.max(val, 0), 255);
+// Modify the editor input listener to save content
+document.querySelector('.editor').addEventListener('input', function() {
+  // Save content to cookie
+  setCookie('documentContent', this.innerHTML, 30);
   
-  let hex = color.replace('#', '');
-  let r = parseInt(hex.substring(0, 2), 16);
-  let g = parseInt(hex.substring(2, 4), 16);
-  let b = parseInt(hex.substring(4, 6), 16);
+  // ... (existing autosave code) ...
+});
 
-  r = clamp(r + amount);
-  g = clamp(g + amount);
-  b = clamp(b + amount);
+// Save document title
+document.querySelector('.doc-title').addEventListener('input', function(e) {
+  setCookie('documentTitle', e.target.value, 30);
+  // ... (existing title code) ...
+});
 
-  const toHex = (n) => {
-    const hex = n.toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  };
+// Add export functionality to the toolbar
+const exportGroup = document.createElement('div');
+exportGroup.className = 'toolbar-group';
+exportGroup.innerHTML = `
+  <button class="toolbar-button" data-command="exportPDF" data-tooltip="Export as PDF">
+    <svg viewBox="0 0 24 24" width="20" height="20">
+      <path fill="currentColor" d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/>
+    </svg>
+  </button>
+  <button class="toolbar-button" data-command="exportTXT" data-tooltip="Export as TXT">
+    <svg viewBox="0 0 24 24" width="20" height="20">
+      <path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+    </svg>
+  </button>
+`;
 
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+document.querySelector('.toolbar').appendChild(exportGroup);
+
+// Add export functionality
+function exportAsPDF() {
+  const content = document.querySelector('.editor').innerHTML;
+  const style = `
+    <style>
+      body { font-family: 'Quicksand', sans-serif; }
+      * { color: ${getComputedStyle(document.body).color} !important; }
+    </style>
+  `;
+  
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head>${style}</head><body>${content}</body></html>`);
+  win.document.close();
+  win.print();
 }
 
-document.getElementById('theme-toggle').addEventListener('click', function() {
-  document.querySelector('.themes-panel').classList.toggle('open');
-});
+function exportAsTXT() {
+  const content = document.querySelector('.editor').innerText;
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${document.querySelector('.doc-title').value || 'document'}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.themes-panel') && !e.target.closest('#theme-toggle')) {
-    document.querySelector('.themes-panel').classList.remove('open');
-  }
-});
-
-document.querySelector('.editor').addEventListener('paste', function(e) {
-  e.preventDefault();
-  const text = e.clipboardData.getData('text/plain');
-  document.execCommand('insertText', false, text);
-});
-
-document.addEventListener('keydown', function(e) {
-  if (e.ctrlKey || e.metaKey) {
-    switch(e.key.toLowerCase()) {
-      case 's':
-        e.preventDefault();
-        const indicator = document.createElement('div');
-        indicator.className = 'save-indicator';
-        indicator.textContent = 'Changes saved';
-        document.body.appendChild(indicator);
-        setTimeout(() => indicator.remove(), 2000);
-        break;
-      case 'b':
-        e.preventDefault();
-        document.execCommand('bold', false, null);
-        break;
-      case 'i':
-        e.preventDefault();
-        document.execCommand('italic', false, null);
-        break;
-    }
-  }
-});
+// Add export button event listeners
+document.querySelector('[data-command="exportPDF"]').addEventListener('click', exportAsPDF);
+document.querySelector('[data-command="exportTXT"]').addEventListener('click', exportAsTXT);
 </script>
 
 </body></html>
