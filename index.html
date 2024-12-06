@@ -2,6 +2,7 @@
 <meta charset="UTF-8">
 <title>Google Docs Clone</title>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --blue-500: #4285f4;
@@ -15,7 +16,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Quicksand', sans-serif;
+  font-family: 'Inconsolata', monospace;
 }
 
 body {
@@ -40,42 +41,40 @@ body {
 
 .doc-title {
   border: none;
-  font-size: 18px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  width: 200px;
+  font-size: 20px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  width: 250px;
+  font-weight: 500;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .doc-title:hover {
-  background: var(--gray-100);
-  width: 300px;
+  width: 350px;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
-  padding: 8px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--gray-200);
-  gap: 16px;
-  background: white;
-  position: sticky;
-  top: 56px;
-  z-index: 99;
+  gap: 24px;
+  background: var(--gray-100);
 }
 
 .toolbar-group {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px;
-  border-radius: 6px;
-  background: var(--gray-100);
+  padding: 6px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .toolbar-button {
-  padding: 8px;
-  border-radius: 6px;
+  padding: 10px;
+  border-radius: 8px;
   border: none;
   background: none;
   cursor: pointer;
@@ -86,8 +85,9 @@ body {
 }
 
 .toolbar-button:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--gray-100);
   transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .toolbar-button:active {
@@ -127,11 +127,12 @@ body {
 .editor {
   width: 100%;
   min-height: 1100px;
-  padding: 40px;
+  padding: 60px;
   border: 1px solid var(--gray-200);
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   outline: none;
+  line-height: 1.6;
   transition: box-shadow 0.3s ease;
 }
 
@@ -159,7 +160,7 @@ body {
   background: var(--gray-700);
   color: white;
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 8px;
   opacity: 0;
   animation: saveIndicator 2s ease forwards;
 }
@@ -196,8 +197,9 @@ body {
   box-shadow: -2px 0 8px rgba(0,0,0,0.1);
   transition: right 0.3s ease;
   z-index: 101;
-  padding: 24px;
+  padding: 32px;
   overflow-y: auto;
+  border-left: 1px solid var(--gray-200);
 }
 
 .themes-panel.open {
@@ -207,24 +209,24 @@ body {
 .theme-option {
   display: flex;
   align-items: center;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 16px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background 0.2s ease;
-  margin-bottom: 12px;
-  border: 1px solid var(--gray-200);
+  transition: all 0.2s ease;
+  margin-bottom: 16px;
+  border: 2px solid var(--gray-200);
 }
 
 .theme-option:hover {
-  background: var(--gray-100);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .theme-preview {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  margin-right: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  margin-right: 16px;
 }
 </style>
 </head>
@@ -517,6 +519,33 @@ editor.addEventListener('input', (e) => {
   setCookie('documentContent', editor.innerHTML, 30);
 });
 
+// Format command handler
+function execCommand(command, value = null) {
+  document.execCommand(command, false, value);
+  editor.focus();
+  // Save content after formatting
+  setCookie('documentContent', editor.innerHTML, 30);
+}
+
+// Add event listeners to all toolbar buttons
+document.querySelectorAll('.toolbar-button').forEach(button => {
+  const command = button.getAttribute('data-command');
+  if (command) {
+    button.addEventListener('click', () => {
+      if (command === 'fontSize') {
+        execCommand(command, button.value);
+      } else {
+        execCommand(command);
+      }
+    });
+  }
+});
+
+// Handle font size changes
+document.querySelector('[data-command="fontSize"]').addEventListener('change', function(e) {
+  execCommand('fontSize', e.target.value);
+});
+
 // Undo command
 document.querySelector('[data-command="undo"]').addEventListener('click', () => {
   if (undoStack.length > 0) {
@@ -535,19 +564,34 @@ document.querySelector('[data-command="redo"]').addEventListener('click', () => 
   }
 });
 
-// Also support keyboard shortcuts
+// Add keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey) {
-    if (e.key === 'z') {
-      e.preventDefault();
-      if (e.shiftKey) {
-        document.querySelector('[data-command="redo"]').click();
-      } else {
-        document.querySelector('[data-command="undo"]').click();
-      }
-    } else if (e.key === 'y') {
-      e.preventDefault();
-      document.querySelector('[data-command="redo"]').click();
+    switch(e.key.toLowerCase()) {
+      case 'b':
+        e.preventDefault();
+        execCommand('bold');
+        break;
+      case 'i':
+        e.preventDefault();
+        execCommand('italic');
+        break;
+      case 'u':
+        e.preventDefault();
+        execCommand('underline');
+        break;
+      case 'l':
+        e.preventDefault();
+        execCommand('justifyLeft');
+        break;
+      case 'e':
+        e.preventDefault();
+        execCommand('justifyCenter');
+        break;
+      case 'r':
+        e.preventDefault();
+        execCommand('justifyRight');
+        break;
     }
   }
 });
@@ -597,7 +641,7 @@ function exportAsPDF() {
   const content = document.querySelector('.editor').innerHTML;
   const style = `
     <style>
-      body { font-family: 'Quicksand', sans-serif; }
+      body { font-family: 'Inconsolata', monospace; }
       * { color: ${getComputedStyle(document.body).color} !important; }
     </style>
   `;
