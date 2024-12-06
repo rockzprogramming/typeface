@@ -1,0 +1,684 @@
+<html><head><base href="/" />
+<meta charset="UTF-8">
+<title>Google Docs Clone</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --blue-500: #4285f4;
+  --gray-100: #f1f3f4;
+  --gray-200: #e8eaed;
+  --gray-700: #5f6368;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Quicksand', sans-serif;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--gray-200);
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: box-shadow 0.3s ease;
+}
+
+.header.scrolled {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.doc-title {
+  border: none;
+  font-size: 18px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  width: 200px;
+  transition: all 0.3s ease;
+}
+
+.doc-title:hover {
+  background: var(--gray-100);
+  width: 300px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid var(--gray-200);
+  gap: 8px;
+  background: white;
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-right: 1px solid var(--gray-200);
+}
+
+.toolbar-button {
+  padding: 6px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--gray-700);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.toolbar-button:hover {
+  background: var(--gray-100);
+  transform: translateY(-1px);
+}
+
+.toolbar-button:active {
+  transform: translateY(1px);
+}
+
+.toolbar-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.toolbar-button:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.content {
+  width: 100%;
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 40px;
+  min-height: calc(100vh - 128px);
+}
+
+.editor {
+  width: 100%;
+  min-height: 1100px;
+  padding: 40px;
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  outline: none;
+  transition: box-shadow 0.3s ease;
+}
+
+.editor:focus {
+  box-shadow: 0 4px 12px rgba(66,133,244,0.2);
+}
+
+@keyframes saveIndicator {
+  0% { opacity: 0; transform: translateY(10px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+.save-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--gray-700);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  opacity: 0;
+  animation: saveIndicator 2s ease forwards;
+}
+
+.suggestion-popup {
+  position: absolute;
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 4px 0;
+  max-width: 200px;
+  z-index: 1000;
+  display: none;
+}
+
+.suggestion-item {
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.suggestion-item:hover {
+  background: var(--gray-100);
+}
+
+.themes-panel {
+  position: fixed;
+  right: -300px;
+  top: 0;
+  width: 300px;
+  height: 100vh;
+  background: white;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  transition: right 0.3s ease;
+  z-index: 101;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.themes-panel.open {
+  right: 0;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.theme-option:hover {
+  background: var(--gray-100);
+}
+
+.theme-preview {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  margin-right: 12px;
+}
+</style>
+</head>
+<body>
+  <div class="header">
+    <input type="text" class="doc-title" value="Untitled document">
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button class="toolbar-button" data-command="undo" data-tooltip="Undo">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
+        </svg>
+      </button>
+      <button class="toolbar-button" data-command="bold" data-tooltip="Bold">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/>
+        </svg>
+      </button>
+      <button class="toolbar-button" data-command="italic" data-tooltip="Italic">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-button" data-command="fontSize" data-tooltip="Font size">11</button>
+      <button class="toolbar-button" data-tooltip="More options">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M7 14l5-5 5 5z"/>
+        </svg>
+      </button>
+      <button class="toolbar-button" id="theme-toggle" data-tooltip="Themes">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-button" data-command="justifyLeft" data-tooltip="Align left">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2z"/>
+        </svg>
+      </button>
+      <button class="toolbar-button" data-command="justifyCenter" data-tooltip="Center">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M7 15v2h10v-2H7zm-4-4h18v-2H3v2zm4-4h10V5H7v2zm-4 12h18v-2H3v2z"/>
+        </svg>
+      </button>
+      <button class="toolbar-button" data-command="justifyRight" data-tooltip="Align right">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-button" data-command="insertUnorderedList" data-tooltip="Bullet list">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/>
+        </svg>
+      </button>
+      <button class="toolbar-button" data-command="insertOrderedList" data-tooltip="Numbered list">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-button" data-command="underline" data-tooltip="Underline">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/>
+        </svg>
+      </button>
+      <button class="toolbar-button" data-command="strikethrough" data-tooltip="Strikethrough">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M7.24 8.75c-.26-.48-.39-1.03-.39-1.67 0-.61.13-1.16.4-1.67.26-.5.63-.93 1.11-1.29.48-.35 1.05-.63 1.7-.83.66-.19 1.39-.29 2.18-.29.81 0 1.54.11 2.21.34.66.22 1.23.54 1.69.94.47.4.83.88 1.08 1.43.25.55.38 1.15.38 1.81h-3.01c0-.31-.05-.59-.15-.85-.09-.27-.24-.49-.44-.68-.2-.19-.45-.33-.75-.44-.3-.1-.66-.16-1.06-.16-.39 0-.74.04-1.03.13-.29.09-.53.21-.72.36-.19.16-.34.34-.44.55-.1.21-.15.43-.15.66 0 .48.25.88.74 1.21.38.25.77.48 1.41.7H7.39c-.05-.08-.11-.17-.15-.25zM21 12v-2H3v2h9.62c.18.07.4.14.55.2.37.17.66.34.87.51.21.17.35.36.43.57.07.2.11.43.11.69 0 .23-.05.45-.14.66-.09.2-.23.38-.42.53-.19.15-.42.26-.71.35-.29.08-.63.13-1.01.13-.43 0-.83-.04-1.18-.13s-.66-.23-.91-.42c-.25-.19-.45-.44-.59-.75-.14-.31-.25-.76-.25-1.21H6.4c0 .55.08 1.13.24 1.58.16.45.37.85.65 1.21.28.35.6.66.98.92.37.26.78.48 1.22.65.44.17.9.3 1.38.39.48.08.96.13 1.44.13.8 0 1.53-.09 2.18-.28s1.21-.45 1.67-.79c.46-.34.82-.77 1.07-1.27s.38-1.07.38-1.71c0-.6-.1-1.14-.31-1.61-.05-.11-.11-.23-.17-.33H21z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-button" data-command="outdent" data-tooltip="Decrease indent">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M11 17h10v-2H11v2zm-8-5l4 4V8l-4 4zm0 9h18v-2H3v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/>
+        </svg>
+      </button>
+      <button class="toolbar-button" data-command="indent" data-tooltip="Increase indent">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="editor" contenteditable="true">
+      <p>Type your document here...</p>
+    </div>
+  </div>
+
+  <div class="themes-panel">
+    <h3>Choose Theme</h3>
+    <div id="themes-list"></div>
+  </div>
+
+  <div class="suggestion-popup"></div>
+
+<script>
+document.querySelector('.doc-title').addEventListener('input', function(e) {
+  document.title = e.target.value + ' - Google Docs';
+});
+
+// Show header shadow on scroll
+window.addEventListener('scroll', function() {
+  const header = document.querySelector('.header');
+  if (window.scrollY > 0) {
+    header.classList.add('scrolled');
+  } else {
+    header.classList.remove('scrolled');
+  }
+});
+
+let saveTimeout;
+document.querySelector('.editor').addEventListener('input', function() {
+  // Clear previous timeout
+  clearTimeout(saveTimeout);
+  
+  // Set new timeout for autosave
+  saveTimeout = setTimeout(() => {
+    // Show save indicator
+    const indicator = document.createElement('div');
+    indicator.className = 'save-indicator';
+    indicator.textContent = 'Changes saved';
+    document.body.appendChild(indicator);
+    
+    // Remove indicator after animation
+    setTimeout(() => {
+      indicator.remove();
+    }, 2000);
+    
+    // Here you would normally implement actual save functionality
+    console.log('Content saved');
+  }, 1000);
+});
+
+// Basic formatting commands
+document.querySelectorAll('.toolbar-button').forEach(button => {
+  button.addEventListener('click', function() {
+    const command = this.dataset.command;
+    if (!command) return;
+
+    switch(command) {
+      case 'fontSize':
+        const size = prompt('Enter font size (px):', '11');
+        if (size) document.execCommand('fontSize', false, '7');
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const span = document.createElement('span');
+          span.style.fontSize = size + 'px';
+          range.surroundContents(span);
+        }
+        break;
+
+      case 'indent':
+        document.execCommand('indent', false, null);
+        break;
+
+      case 'outdent':
+        document.execCommand('outdent', false, null);
+        break;
+
+      default:
+        document.execCommand(command, false, null);
+    }
+
+    // Add visual feedback
+    this.style.transform = 'scale(0.9)';
+    setTimeout(() => this.style.transform = 'scale(1)', 100);
+  });
+});
+
+// Add support for keyboard shortcuts
+const shortcuts = {
+  'ctrl+b': 'bold',
+  'ctrl+i': 'italic',
+  'ctrl+u': 'underline',
+  'ctrl+l': 'justifyLeft',
+  'ctrl+e': 'justifyCenter',
+  'ctrl+r': 'justifyRight',
+  'ctrl+shift+7': 'insertOrderedList',
+  'ctrl+shift+8': 'insertUnorderedList',
+  'tab': 'indent',
+  'shift+tab': 'outdent'
+};
+
+document.querySelector('.editor').addEventListener('keydown', function(e) {
+  const key = (e.ctrlKey ? 'ctrl+' : '') + 
+              (e.shiftKey ? 'shift+' : '') + 
+              e.key.toLowerCase();
+              
+  if (shortcuts[key]) {
+    e.preventDefault();
+    document.execCommand(shortcuts[key], false, null);
+  }
+});
+
+// Add history tracking
+let undoStack = [];
+let redoStack = [];
+
+document.querySelector('.editor').addEventListener('input', function(e) {
+  undoStack.push(this.innerHTML);
+  redoStack = []; // Clear redo stack on new changes
+});
+
+document.querySelector('[data-command="undo"]').addEventListener('click', function() {
+  if (undoStack.length > 0) {
+    const editor = document.querySelector('.editor');
+    redoStack.push(editor.innerHTML);
+    editor.innerHTML = undoStack.pop();
+  }
+});
+
+// Autocorrect functionality
+const commonMisspellings = {
+  'teh': 'the',
+  'recieve': 'receive',
+  'wierd': 'weird',
+  'seperate': 'separate',
+  'occurence': 'occurrence',
+  'thier': 'their',
+  // Add more word pairs as needed
+};
+
+let selectedWord = null;
+let selectedRange = null;
+
+document.querySelector('.editor').addEventListener('dblclick', function(e) {
+  const selection = window.getSelection();
+  const range = selection.getRangeAt(0);
+  const word = selection.toString().trim().toLowerCase();
+  
+  if (word) {
+    selectedWord = word;
+    selectedRange = range;
+    
+    // Find suggestions
+    const suggestions = findSuggestions(word);
+    if (suggestions.length > 0) {
+      showSuggestions(suggestions, e.clientX, e.clientY);
+    }
+  }
+});
+
+function findSuggestions(word) {
+  const suggestions = [];
+  
+  // Check common misspellings
+  if (commonMisspellings[word]) {
+    suggestions.push(commonMisspellings[word]);
+  }
+  
+  // Add similar words (simple example)
+  Object.keys(commonMisspellings).forEach(key => {
+    if (key.includes(word) || word.includes(key)) {
+      suggestions.push(commonMisspellings[key]);
+    }
+  });
+  
+  return [...new Set(suggestions)]; // Remove duplicates
+}
+
+function showSuggestions(suggestions, x, y) {
+  const popup = document.querySelector('.suggestion-popup');
+  popup.innerHTML = '';
+  popup.style.display = 'block';
+  popup.style.left = `${x}px`;
+  popup.style.top = `${y + 20}px`;
+  
+  suggestions.forEach(suggestion => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.textContent = suggestion;
+    item.addEventListener('click', () => {
+      replaceTerm(suggestion);
+      popup.style.display = 'none';
+    });
+    popup.appendChild(item);
+  });
+}
+
+function replaceTerm(newWord) {
+  if (selectedRange) {
+    selectedRange.deleteContents();
+    selectedRange.insertNode(document.createTextNode(newWord));
+  }
+}
+
+// Hide suggestions when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.suggestion-popup')) {
+    document.querySelector('.suggestion-popup').style.display = 'none';
+  }
+});
+
+// Themes functionality
+const themes = [
+  { name: 'Default', bg: '#ffffff', text: '#000000', accent: '#4285f4', headerBg: '#ffffff', toolbarBg: '#ffffff' },
+  { name: 'Dark', bg: '#1a1a1a', text: '#ffffff', accent: '#bb86fc', headerBg: '#2d2d2d', toolbarBg: '#2d2d2d' },
+  { name: 'Sepia', bg: '#f4ecd8', text: '#5c4b37', accent: '#8b4513', headerBg: '#efe5d4', toolbarBg: '#efe5d4' },
+  { name: 'Ocean', bg: '#f0f8ff', text: '#000080', accent: '#4169e1', headerBg: '#e6f3ff', toolbarBg: '#e6f3ff' },
+  { name: 'Forest', bg: '#f1f8e9', text: '#1b5e20', accent: '#2e7d32', headerBg: '#e8f5e9', toolbarBg: '#e8f5e9' },
+  { name: 'Sunset', bg: '#fff3e0', text: '#bf360c', accent: '#ff7043', headerBg: '#ffe0b2', toolbarBg: '#ffe0b2' },
+  { name: 'Midnight', bg: '#0a1929', text: '#e3f2fd', accent: '#5c6bc0', headerBg: '#132f4c', toolbarBg: '#132f4c' },
+  { name: 'Lavender', bg: '#f3e5f5', text: '#4a148c', accent: '#9c27b0', headerBg: '#ede7f6', toolbarBg: '#ede7f6' },
+  { name: 'Mint', bg: '#e0f2f1', text: '#004d40', accent: '#00897b', headerBg: '#e0f2f1', toolbarBg: '#e0f2f1' },
+  { name: 'Rose Gold', bg: '#fce4ec', text: '#880e4f', accent: '#ec407a', headerBg: '#fce4ec', toolbarBg: '#fce4ec' },
+  { name: 'Cyberpunk', bg: '#0c0c1d', text: '#00ff9f', accent: '#ff00ff', headerBg: '#1a1a2e', toolbarBg: '#1a1a2e' },
+  { name: 'Forest Deep', bg: '#1b5e20', text: '#ffffff', accent: '#4caf50', headerBg: '#2e7d32', toolbarBg: '#2e7d32' },
+  { name: 'Forest Light', bg: '#e8f5e9', text: '#1b5e20', accent: '#81c784', headerBg: '#c8e6c9', toolbarBg: '#c8e6c9' },
+  { name: 'Ocean Deep', bg: '#01579b', text: '#ffffff', accent: '#039be5', headerBg: '#0277bd', toolbarBg: '#0277bd' },
+  { name: 'Ocean Light', bg: '#e1f5fe', text: '#01579b', accent: '#29b6f6', headerBg: '#b3e5fc', toolbarBg: '#b3e5fc' },
+  { name: 'Purple Rain', bg: '#4a148c', text: '#ffffff', accent: '#9c27b0', headerBg: '#6a1b9a', toolbarBg: '#6a1b9a' },
+  { name: 'Purple Mist', bg: '#f3e5f5', text: '#4a148c', accent: '#ba68c8', headerBg: '#e1bee7', toolbarBg: '#e1bee7' },
+  { name: 'Ruby Deep', bg: '#b71c1c', text: '#ffffff', accent: '#e53935', headerBg: '#c62828', toolbarBg: '#c62828' },
+  { name: 'Ruby Light', bg: '#ffebee', text: '#b71c1c', accent: '#ef5350', headerBg: '#ffcdd2', toolbarBg: '#ffcdd2' },
+  { name: 'Emerald Deep', bg: '#004d40', text: '#ffffff', accent: '#00897b', headerBg: '#00695c', toolbarBg: '#00695c' },
+  { name: 'Emerald Light', bg: '#e0f2f1', text: '#004d40', accent: '#4db6ac', headerBg: '#b2dfdb', toolbarBg: '#b2dfdb' },
+  { name: 'Golden Deep', bg: '#f57f17', text: '#ffffff', accent: '#fbc02d', headerBg: '#f9a825', toolbarBg: '#f9a825' },
+  { name: 'Golden Light', bg: '#fffde7', text: '#f57f17', accent: '#ffee58', headerBg: '#fff9c4', toolbarBg: '#fff9c4' },
+  { name: 'Arctic Deep', bg: '#01579b', text: '#ffffff', accent: '#03a9f4', headerBg: '#0288d1', toolbarBg: '#0288d1' },
+  { name: 'Arctic Light', bg: '#e1f5fe', text: '#01579b', accent: '#4fc3f7', headerBg: '#b3e5fc', toolbarBg: '#b3e5fc' },
+  { name: 'Coral Deep', bg: '#bf360c', text: '#ffffff', accent: '#ff5722', headerBg: '#d84315', toolbarBg: '#d84315' },
+  { name: 'Coral Light', bg: '#fbe9e7', text: '#bf360c', accent: '#ff8a65', headerBg: '#ffccbc', toolbarBg: '#ffccbc' },
+  { name: 'Sage Deep', bg: '#33691e', text: '#ffffff', accent: '#7cb342', headerBg: '#558b2f', toolbarBg: '#558b2f' },
+  { name: 'Sage Light', bg: '#f1f8e9', text: '#33691e', accent: '#aed581', headerBg: '#dcedc8', toolbarBg: '#dcedc8' },
+  { name: 'Berry Deep', bg: '#880e4f', text: '#ffffff', accent: '#e91e63', headerBg: '#ad1457', toolbarBg: '#ad1457' },
+  { name: 'Berry Light', bg: '#fce4ec', text: '#880e4f', accent: '#f06292', headerBg: '#f8bbd0', toolbarBg: '#f8bbd0' },
+  { name: 'Steel Deep', bg: '#263238', text: '#ffffff', accent: '#546e7a', headerBg: '#37474f', toolbarBg: '#37474f' },
+  { name: 'Steel Light', bg: '#eceff1', text: '#263238', accent: '#90a4ae', headerBg: '#cfd8dc', toolbarBg: '#cfd8dc' },
+  { name: 'Bronze Deep', bg: '#3e2723', text: '#ffffff', accent: '#6d4c41', headerBg: '#4e342e', toolbarBg: '#4e342e' },
+  { name: 'Bronze Light', bg: '#efebe9', text: '#3e2723', accent: '#a1887f', headerBg: '#d7ccc8', toolbarBg: '#d7ccc8' }
+];
+
+const themesList = document.getElementById('themes-list');
+themes.forEach(theme => {
+  const themeOption = document.createElement('div');
+  themeOption.className = 'theme-option';
+  
+  const preview = document.createElement('div');
+  preview.className = 'theme-preview';
+  preview.style.background = theme.bg;
+  preview.style.border = `2px solid ${theme.accent}`;
+  
+  const name = document.createElement('span');
+  name.textContent = theme.name;
+  
+  themeOption.appendChild(preview);
+  themeOption.appendChild(name);
+  
+  themeOption.addEventListener('click', () => applyTheme(theme));
+  themesList.appendChild(themeOption);
+});
+
+function applyTheme(theme) {
+  document.documentElement.style.setProperty('--blue-500', theme.accent);
+  document.documentElement.style.setProperty('--gray-100', adjustColor(theme.bg, -5));
+  document.documentElement.style.setProperty('--gray-200', adjustColor(theme.bg, -10));
+  document.documentElement.style.setProperty('--gray-700', adjustColor(theme.text, 20));
+
+  document.body.style.background = theme.bg;
+  document.body.style.color = theme.text;
+
+  const header = document.querySelector('.header');
+  header.style.background = theme.headerBg;
+  header.style.borderColor = adjustColor(theme.headerBg, -10);
+
+  const toolbar = document.querySelector('.toolbar');
+  toolbar.style.background = theme.toolbarBg;
+  toolbar.style.borderColor = adjustColor(theme.toolbarBg, -10);
+
+  const editor = document.querySelector('.editor');
+  editor.style.background = theme.bg;
+  editor.style.color = theme.text;
+  editor.style.borderColor = adjustColor(theme.bg, -10);
+
+  document.querySelectorAll('.toolbar-button').forEach(button => {
+    button.style.color = theme.text;
+  });
+
+  const docTitle = document.querySelector('.doc-title');
+  docTitle.style.color = theme.text;
+  docTitle.style.background = theme.headerBg;
+
+  const themesPanel = document.querySelector('.themes-panel');
+  themesPanel.style.background = theme.headerBg;
+  themesPanel.style.color = theme.text;
+
+  document.documentElement.style.setProperty('--hover-bg', adjustColor(theme.bg, -5));
+}
+
+function adjustColor(color, amount) {
+  const clamp = (val) => Math.min(Math.max(val, 0), 255);
+  
+  let hex = color.replace('#', '');
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+
+  r = clamp(r + amount);
+  g = clamp(g + amount);
+  b = clamp(b + amount);
+
+  const toHex = (n) => {
+    const hex = n.toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+document.getElementById('theme-toggle').addEventListener('click', function() {
+  document.querySelector('.themes-panel').classList.toggle('open');
+});
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.themes-panel') && !e.target.closest('#theme-toggle')) {
+    document.querySelector('.themes-panel').classList.remove('open');
+  }
+});
+
+document.querySelector('.editor').addEventListener('paste', function(e) {
+  e.preventDefault();
+  const text = e.clipboardData.getData('text/plain');
+  document.execCommand('insertText', false, text);
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey || e.metaKey) {
+    switch(e.key.toLowerCase()) {
+      case 's':
+        e.preventDefault();
+        const indicator = document.createElement('div');
+        indicator.className = 'save-indicator';
+        indicator.textContent = 'Changes saved';
+        document.body.appendChild(indicator);
+        setTimeout(() => indicator.remove(), 2000);
+        break;
+      case 'b':
+        e.preventDefault();
+        document.execCommand('bold', false, null);
+        break;
+      case 'i':
+        e.preventDefault();
+        document.execCommand('italic', false, null);
+        break;
+    }
+  }
+});
+</script>
+
+</body></html>
