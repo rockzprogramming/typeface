@@ -245,30 +245,61 @@ select.toolbar-button option {
   color: var(--text-color, black);
 }
 
-@keyframes typing {
-  from { width: 0 }
-  to { width: 100% }
-}
-
-@keyframes blink {
-  50% { border-color: transparent }
-}
-
-.typing-animation {
-  overflow: hidden;
-  white-space: nowrap;
-  border-right: 2px solid var(--gray-700);
-  animation: 
-    typing 1.5s steps(30, end),
-    blink 0.75s step-end infinite;
-}
-
 .editor.typing *:last-child {
-  display: inline-block;
-  overflow: hidden;
-  white-space: nowrap;
-  border-right: 2px solid var(--gray-700);
-  animation: blink 0.75s step-end infinite;
+  display: block; /* Reset to normal display */
+  overflow: visible;
+  white-space: normal;
+  border-right: none; /* Remove the cursor */
+}
+
+.theme-creator-panel {
+  position: fixed;
+  right: -300px;
+  top: 0;
+  width: 300px;
+  height: 100vh;
+  background: white;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  transition: right 0.3s ease;
+  z-index: 102;
+  padding: 32px;
+  overflow-y: auto;
+  border-left: 1px solid var(--gray-200);
+}
+
+.theme-creator-panel.open {
+  right: 0;
+}
+
+.input-group {
+  margin-bottom: 16px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--gray-700);
+}
+
+.input-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+}
+
+.input-group input[type="color"] {
+  height: 40px;
+  padding: 2px;
+}
+
+#save-theme {
+  width: 100%;
+  margin-top: 16px;
+  background: var(--blue-500);
+  color: white;
+  padding: 12px;
+  border-radius: 4px;
 }
 </style>
 </head>
@@ -350,6 +381,11 @@ select.toolbar-button option {
           <path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
         </svg>
       </button>
+      <button class="toolbar-button" id="create-theme-toggle" data-tooltip="Create Theme">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+        </svg>
+      </button>
     </div>
 
     <div class="toolbar-group">
@@ -407,6 +443,33 @@ select.toolbar-button option {
     <div id="themes-list"></div>
   </div>
 
+  <div class="theme-creator-panel">
+    <h3>Create Custom Theme</h3>
+    <div class="theme-creator-form">
+      <div class="input-group">
+        <label>Theme Name:</label>
+        <input type="text" id="theme-name" placeholder="My Custom Theme">
+      </div>
+      <div class="input-group">
+        <label>Primary Color:</label>
+        <input type="color" id="primary-color">
+      </div>
+      <div class="input-group">
+        <label>Background Color:</label>
+        <input type="color" id="background-color" value="#ffffff">
+      </div>
+      <div class="input-group">
+        <label>Text Color:</label>
+        <input type="color" id="text-color" value="#000000">
+      </div>
+      <div class="input-group">
+        <label>Accent Color:</label>
+        <input type="color" id="accent-color">
+      </div>
+      <button id="save-theme" class="toolbar-button">Save Theme</button>
+    </div>
+  </div>
+
   <div class="suggestion-popup"></div>
 
 <script>
@@ -453,6 +516,10 @@ document.addEventListener('DOMContentLoaded', function() {
     fontSelector.value = savedFont;
     execCommand('fontName', savedFont);
   }
+
+  // Load custom themes on startup
+  const customThemes = JSON.parse(localStorage.getItem('customThemes') || '[]');
+  themes.push(...customThemes);
 });
 
 // Define themes array
@@ -579,10 +646,22 @@ themeToggle.addEventListener('click', () => {
   themesPanel.classList.toggle('open');
 });
 
+// Create theme panel toggle
+const createThemeToggle = document.getElementById('create-theme-toggle');
+const themeCreatorPanel = document.querySelector('.theme-creator-panel');
+
+createThemeToggle.addEventListener('click', () => {
+  themeCreatorPanel.classList.toggle('open');
+  themesPanel.classList.remove('open');
+});
+
 // Close themes panel when clicking outside
 document.addEventListener('click', (e) => {
   if (!themesPanel.contains(e.target) && !themeToggle.contains(e.target)) {
     themesPanel.classList.remove('open');
+  }
+  if (!themeCreatorPanel.contains(e.target) && !createThemeToggle.contains(e.target)) {
+    themeCreatorPanel.classList.remove('open');
   }
 });
 
@@ -592,10 +671,9 @@ let redoStack = [];
 const editor = document.querySelector('.editor');
 
 editor.addEventListener('input', (e) => {
-  undoStack.push(editor.innerHTML);
-  redoStack = []; // Clear redo stack on new changes
+  // Just save content after input
   setCookie('documentContent', editor.innerHTML, 30);
-  saveFontPreference(); // Save font preference when content changes
+  saveFontPreference();
 });
 
 // Format command handler
@@ -613,28 +691,6 @@ function execCommand(command, value = null) {
 // Font selector functionality
 document.querySelector('[data-command="fontName"]').addEventListener('change', function(e) {
   execCommand('fontName', e.target.value);
-});
-
-// Typing animation
-editor.addEventListener('input', function(e) {
-  // Add typing class to editor
-  this.classList.add('typing');
-  
-  // Remove typing class after delay
-  setTimeout(() => {
-    this.classList.remove('typing');
-  }, 1000);
-
-  // If typing new paragraph, add animation class
-  if (e.inputType === 'insertParagraph') {
-    const newParagraph = this.lastElementChild;
-    if (newParagraph) {
-      newParagraph.classList.add('typing-animation');
-      setTimeout(() => {
-        newParagraph.classList.remove('typing-animation');
-      }, 1500);
-    }
-  }
 });
 
 // Save font selection to cookies
@@ -730,6 +786,50 @@ function exportAsTXT() {
 // Add export button event listeners
 document.querySelector('[data-command="exportPDF"]').addEventListener('click', exportAsPDF);
 document.querySelector('[data-command="exportTXT"]').addEventListener('click', exportAsTXT);
+
+// Save custom theme
+document.getElementById('save-theme').addEventListener('click', () => {
+  const name = document.getElementById('theme-name').value || 'Custom Theme';
+  const newTheme = {
+    name,
+    primary: document.getElementById('primary-color').value,
+    background: document.getElementById('background-color').value,
+    text: document.getElementById('text-color').value,
+    accent: document.getElementById('accent-color').value
+  };
+
+  // Add to themes array
+  themes.push(newTheme);
+  
+  // Save to localStorage
+  localStorage.setItem('customThemes', JSON.stringify(
+    themes.filter(t => !t.isDefault)
+  ));
+  
+  // Add to themes panel
+  const themeOption = document.createElement('div');
+  themeOption.className = 'theme-option';
+  themeOption.innerHTML = `
+    <div class="theme-preview" style="background: ${newTheme.primary}"></div>
+    <span>${newTheme.name}</span>
+  `;
+  themeOption.onclick = () => applyTheme(newTheme);
+  themesList.appendChild(themeOption);
+  
+  // Apply the new theme
+  applyTheme(newTheme);
+  
+  // Close panel
+  themeCreatorPanel.classList.remove('open');
+});
+
+// Fix font selection
+document.querySelector('[data-command="fontName"]').addEventListener('change', function(e) {
+  const font = e.target.value;
+  execCommand('fontName', font);
+  document.execCommand('defaultParagraphSeparator', false, 'p');
+  setCookie('selectedFont', font, 30);
+});
 </script>
 
 </body></html>
