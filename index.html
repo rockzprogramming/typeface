@@ -244,6 +244,32 @@ select.toolbar-button option {
   background: var(--background-color, white);
   color: var(--text-color, black);
 }
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink {
+  50% { border-color: transparent }
+}
+
+.typing-animation {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid var(--gray-700);
+  animation: 
+    typing 1.5s steps(30, end),
+    blink 0.75s step-end infinite;
+}
+
+.editor.typing *:last-child {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid var(--gray-700);
+  animation: blink 0.75s step-end infinite;
+}
 </style>
 </head>
 <body>
@@ -302,6 +328,17 @@ select.toolbar-button option {
         <option value="36">36</option>
         <option value="48">48</option>
         <option value="72">72</option>
+      </select>
+      <select class="toolbar-button" data-command="fontName" data-tooltip="Font family">
+        <option value="Inconsolata">Inconsolata</option>
+        <option value="Quicksand">Quicksand</option>
+        <option value="Arial">Arial</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Courier New">Courier New</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Verdana">Verdana</option>
+        <option value="Impact">Impact</option>
+        <option value="Monospace">Monospace</option>
       </select>
       <button class="toolbar-button" data-command="formatMore" data-tooltip="More options">
         <svg viewBox="0 0 24 24" width="20" height="20">
@@ -408,6 +445,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.doc-title').value = savedTitle;
     document.title = savedTitle + ' - Google Docs';
   }
+
+  // Load font preference
+  const savedFont = getCookie('selectedFont');
+  if (savedFont) {
+    const fontSelector = document.querySelector('[data-command="fontName"]');
+    fontSelector.value = savedFont;
+    execCommand('fontName', savedFont);
+  }
 });
 
 // Define themes array
@@ -505,6 +550,12 @@ function applyTheme(theme) {
 
   // Save theme selection
   setCookie('selectedTheme', theme.name, 30);
+
+  // Apply to font selector
+  const fontSelector = document.querySelector('[data-command="fontName"]');
+  fontSelector.style.color = theme.text;
+  fontSelector.style.background = theme.background;
+  fontSelector.style.borderColor = theme.accent;
 }
 
 // Populate themes panel
@@ -544,6 +595,7 @@ editor.addEventListener('input', (e) => {
   undoStack.push(editor.innerHTML);
   redoStack = []; // Clear redo stack on new changes
   setCookie('documentContent', editor.innerHTML, 30);
+  saveFontPreference(); // Save font preference when content changes
 });
 
 // Format command handler
@@ -558,24 +610,38 @@ function execCommand(command, value = null) {
   setCookie('documentContent', editor.innerHTML, 30);
 }
 
-// Add event listeners to all toolbar buttons
-document.querySelectorAll('.toolbar-button').forEach(button => {
-  const command = button.getAttribute('data-command');
-  if (command) {
-    button.addEventListener('click', () => {
-      if (command === 'fontSize') {
-        execCommand(command, button.value);
-      } else {
-        execCommand(command);
-      }
-    });
+// Font selector functionality
+document.querySelector('[data-command="fontName"]').addEventListener('change', function(e) {
+  execCommand('fontName', e.target.value);
+});
+
+// Typing animation
+editor.addEventListener('input', function(e) {
+  // Add typing class to editor
+  this.classList.add('typing');
+  
+  // Remove typing class after delay
+  setTimeout(() => {
+    this.classList.remove('typing');
+  }, 1000);
+
+  // If typing new paragraph, add animation class
+  if (e.inputType === 'insertParagraph') {
+    const newParagraph = this.lastElementChild;
+    if (newParagraph) {
+      newParagraph.classList.add('typing-animation');
+      setTimeout(() => {
+        newParagraph.classList.remove('typing-animation');
+      }, 1500);
+    }
   }
 });
 
-// Handle font size changes
-document.querySelector('[data-command="fontSize"]').addEventListener('change', function(e) {
-  execCommand('fontSize', e.target.value);
-});
+// Save font selection to cookies
+function saveFontPreference() {
+  const fontSelector = document.querySelector('[data-command="fontName"]');
+  setCookie('selectedFont', fontSelector.value, 30);
+}
 
 // Undo command
 document.querySelector('[data-command="undo"]').addEventListener('click', () => {
@@ -595,58 +661,23 @@ document.querySelector('[data-command="redo"]').addEventListener('click', () => 
   }
 });
 
-// Add keyboard shortcuts
-document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey) {
-    switch(e.key.toLowerCase()) {
-      case 'b':
-        e.preventDefault();
-        execCommand('bold');
-        break;
-      case 'i':
-        e.preventDefault();
-        execCommand('italic');
-        break;
-      case 'u':
-        e.preventDefault();
-        execCommand('underline');
-        break;
-      case 'l':
-        e.preventDefault();
-        execCommand('justifyLeft');
-        break;
-      case 'e':
-        e.preventDefault();
-        execCommand('justifyCenter');
-        break;
-      case 'r':
-        e.preventDefault();
-        execCommand('justifyRight');
-        break;
-    }
+// Add event listeners to all toolbar buttons
+document.querySelectorAll('.toolbar-button').forEach(button => {
+  const command = button.getAttribute('data-command');
+  if (command) {
+    button.addEventListener('click', () => {
+      if (command === 'fontSize') {
+        execCommand(command, button.value);
+      } else {
+        execCommand(command);
+      }
+    });
   }
 });
 
-// Remove default editor text on focus
-document.querySelector('.editor').addEventListener('focus', function(e) {
-  if (this.textContent === 'Type your document here...') {
-    this.textContent = '';
-  }
-});
-
-// Restore placeholder if empty on blur
-document.querySelector('.editor').addEventListener('blur', function(e) {
-  if (!this.textContent.trim()) {
-    this.textContent = 'Type your document here...';
-  }
-});
-
-// Remove initial placeholder text from HTML
-document.querySelector('.editor').innerHTML = '';
-
-// Save document title
-document.querySelector('.doc-title').addEventListener('input', function(e) {
-  setCookie('documentTitle', e.target.value, 30);
+// Handle font size changes
+document.querySelector('[data-command="fontSize"]').addEventListener('change', function(e) {
+  execCommand('fontSize', e.target.value);
 });
 
 // Add export functionality to the toolbar
