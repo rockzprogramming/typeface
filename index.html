@@ -228,6 +228,22 @@ body {
   border-radius: 12px;
   margin-right: 16px;
 }
+
+select.toolbar-button {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 8px 24px 8px 12px;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 8px auto;
+}
+
+select.toolbar-button option {
+  background: var(--background-color, white);
+  color: var(--text-color, black);
+}
 </style>
 </head>
 <body>
@@ -404,7 +420,7 @@ const themes = [
   {name: 'Sunset Orange', primary: '#e64a19', background: '#fbe9e7', text: '#bf360c', accent: '#ffccbc'},
   {name: 'Midnight Blue', primary: '#1a237e', background: '#1a1a2e', text: '#ffffff', accent: '#534bae'},
   {name: 'Forest Night', primary: '#1b5e20', background: '#1a2f1a', text: '#ffffff', accent: '#43a047'},
-  {name: 'Arctic Light', primary: '#0288d1', background: '#ffffff', text: '#000000', accent: '#e3f2fd'},
+  {name: 'Arctic Light', primary: '#02888d1', background: '#ffffff', text: '#000000', accent: '#e3f2fd'},
   {name: 'Pitch Dark', primary: '#64b5f6', background: '#000000', text: '#ffffff', accent: '#1a1a1a'},
   {name: 'Emerald Forest', primary: '#2e7d32', background: '#f1f8e9', text: '#1b5e20', accent: '#c8e6c9'},
   {name: 'Deep Ocean', primary: '#1565c0', background: '#0a192f', text: '#ffffff', accent: '#172a45'},
@@ -425,7 +441,7 @@ function applyTheme(theme) {
   document.documentElement.style.setProperty('--gray-400', theme.text + '80');
   document.documentElement.style.setProperty('--gray-700', theme.text);
 
-  // Apply theme to body
+  // Apply to body
   document.body.style.background = theme.background;
   document.body.style.color = theme.text;
 
@@ -456,6 +472,17 @@ function applyTheme(theme) {
   const toolbarGroups = document.querySelectorAll('.toolbar-group');
   toolbarGroups.forEach(group => {
     group.style.background = `${theme.accent}40`;
+  });
+
+  // Apply to select elements
+  const selects = document.querySelectorAll('select.toolbar-button');
+  selects.forEach(select => {
+    select.style.color = theme.text;
+    select.style.background = theme.background;
+    select.style.borderColor = theme.accent;
+    // Set CSS variables for options
+    document.documentElement.style.setProperty('--background-color', theme.background);
+    document.documentElement.style.setProperty('--text-color', theme.text);
   });
 
   // Apply to document title
@@ -521,7 +548,11 @@ editor.addEventListener('input', (e) => {
 
 // Format command handler
 function execCommand(command, value = null) {
-  document.execCommand(command, false, value);
+  if (command.startsWith('justify')) {
+    document.execCommand(command, false, null);
+  } else {
+    document.execCommand(command, false, value);
+  }
   editor.focus();
   // Save content after formatting
   setCookie('documentContent', editor.innerHTML, 30);
